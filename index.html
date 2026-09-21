@@ -14,7 +14,11 @@ input{width:100%;padding:14px;border:2px solid #d8e2ea;border-radius:12px;font-s
 table{width:100%;border-collapse:collapse}td,th{padding:10px;border-bottom:1px solid #e5ebef;text-align:left}.rank{font-weight:900}.pill{display:inline-block;padding:6px 10px;border-radius:99px;background:#edf4f8;margin:4px}.hide{display:none}.center{text-align:center}.small{font-size:14px;color:#657887}.notice{padding:12px;border-radius:12px;background:#fff7df}.success{background:#e9f8ef}
 @media(max-width:600px){.answers{grid-template-columns:1fr}.wrap{padding:12px}.card{padding:18px}.code{font-size:34px}}
 </style>
-</head>
+<script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+<style>
+.timer.hot{background:#d94b4b;animation:pulse .45s infinite alternate}@keyframes pulse{to{transform:scale(1.07)}}
+.podium-overlay{position:fixed;inset:0;background:#102238f5;z-index:99;display:flex;align-items:center;justify-content:center;padding:20px}.podium-box{width:min(900px,100%);background:#fff;border-radius:28px;padding:28px;text-align:center}.podium-box h2{font-size:clamp(36px,7vw,70px);margin:0 0 25px}.podium-row{display:flex;align-items:end;justify-content:center;gap:10px}.pod{width:30%;padding:18px 8px;border-radius:18px 18px 8px 8px;font-weight:900}.p1{background:#ffd65a;min-height:280px}.p2{background:#dce4ea;min-height:220px}.p3{background:#e9b58d;min-height:190px}.medal{font-size:54px}.podname{font-size:21px;word-break:break-word}.podscore{font-size:30px}.confetti{position:fixed;inset:0;pointer-events:none;overflow:hidden}.confetti i{position:absolute;width:9px;height:18px;animation:fall 2.6s linear forwards}@keyframes fall{from{transform:translateY(-30px) rotate(0)}to{transform:translateY(110vh) rotate(720deg)}}
+</style></head>
 <body>
 <div class="wrap">
   <div class="card center">
@@ -42,7 +46,7 @@ table{width:100%;border-collapse:collapse}td,th{padding:10px;border-bottom:1px s
   <section id="teacher" class="card hide">
     <h2>老師控制台</h2>
     <p>請把下面房間碼投影給全班：</p>
-    <div id="roomCode" class="code">------</div>
+    <div id="roomCode" class="code">------</div><div id="qr" style="background:#fff;padding:10px;border-radius:16px;display:inline-block;margin:10px"></div>
     <p class="center">已加入：<b id="studentCount">0</b> 人</p>
     <div id="studentNames" class="center"></div>
     <hr>
@@ -94,14 +98,14 @@ const questions=[
  {q:"水田是屬於哪一種環境？",a:"水域"},
  {q:"生態池是屬於哪一種環境？",a:"水域"}
 ];
-let peer=null,roomPeer=null,teacherConn=null,teacherMode=false,students=new Map(),game={index:-1,active:false,deadline:0,answers:{},scores:{}},timer=null,myName="";
+let peer=null,roomPeer=null,teacherConn=null,teacherMode=false,students=new Map(),game={index:-1,active:false,deadline:0,answers:{},scores:{}},timer=null,myName="",studentIndex=-1;
 const $=id=>document.getElementById(id);
 function show(id){document.querySelectorAll("section").forEach(x=>x.classList.add("hide"));$(id).classList.remove("hide")}
 function showTeacher(){show("teacherSetup")} function showStudent(){show("studentSetup")} function backHome(){show("home")}
 function roomId(){return "envquiz-"+Math.floor(100000+Math.random()*900000)}
 function createRoom(){
  teacherMode=true; const id=roomId(); peer=new Peer(id);
- peer.on("open",()=>{roomPeer=id; $("roomCode").textContent=id.slice(-6);show("teacher");$("startBtn").disabled=false});
+ peer.on("open",()=>{const code=id.slice(-6);$("roomCode").textContent=code;new QRCode($("qr"),{text:location.href.split("?")[0]+"?join="+code,width:190,height:190});show("teacher");$("startBtn").disabled=false});
  peer.on("connection",conn=>{conn.on("open",()=>{conn.on("data",d=>teacherReceive(conn,d));});});
  peer.on("error",e=>alert("開房失敗："+e.type));
 }
@@ -141,7 +145,7 @@ function finishGame(){
  $("teacherQuestion").textContent="🎉 全部完成！";$("teacherTimer").textContent="";$("nextBtn").disabled=true;renderTeacher();
 }
 function endGame(){clearInterval(timer);game.active=false;broadcast({type:"end"});$("teacherQuestion").textContent="遊戲已結束";$("nextBtn").disabled=true;renderTeacher()}
-function tickTeacher(){const r=Math.max(0,Math.ceil((game.deadline-Date.now())/1000));$("teacherTimer").textContent=game.active?r+" 秒":(game.index>=0?"時間到":"—");$("teacherBar").style.width=Math.max(0,Math.min(100,(game.deadline-Date.now())/100))+"%"}
+function tickTeacher(){const r=Math.max(0,Math.ceil((game.deadline-Date.now())/1000));$("teacherTimer").textContent=game.active?r+" 秒":(game.index>=0?"時間到":"—");$("teacherTimer").classList.toggle("hot",game.active&&r<=3);$("teacherBar").style.width=Math.max(0,Math.min(100,(game.deadline-Date.now())/100))+"%"}
 function renderTeacher(){
  $("studentCount").textContent=students.size;
  $("studentNames").innerHTML=[...students.values()].map(s=>'<span class="pill">👤 '+esc(s.name)+'</span>').join("");
@@ -174,15 +178,16 @@ function studentReceive(d){
  if(d.type==="result"){$("studentStatus").textContent=d.correct?"✅ 答對！":"❌ 答錯！";$("studentScore").textContent=(d.correct?"+":"")+d.points+" 分";$("waterBtn").disabled=true;$("landBtn").disabled=true}
  if(d.type==="timeout"){$("studentStatus").textContent="⏰ 時間到！";$("waterBtn").disabled=true;$("landBtn").disabled=true}
  if(d.type==="scores"){}
- if(d.type==="finish"){renderFinal(d.scores,d.names);$("waterBtn").disabled=true;$("landBtn").disabled=true}
+ if(d.type==="finish"){renderFinal(d.scores,d.names);showPodium(d.scores,d.names);$("waterBtn").disabled=true;$("landBtn").disabled=true}
  if(d.type==="end"){$("studentStatus").textContent="遊戲已結束";$("waterBtn").disabled=true;$("landBtn").disabled=true}
 }
 function startStudentTimer(deadline){
  clearInterval(timer);timer=setInterval(()=>{const r=Math.max(0,Math.ceil((deadline-Date.now())/1000));$("studentTimer").textContent=r+" 秒";$("studentBar").style.width=Math.max(0,Math.min(100,(deadline-Date.now())/100))+"%";if(r<=0)clearInterval(timer)},100)
 }
 function answer(a){
- if(!teacherConn)return;teacherConn.send({type:"answer",index:game.index,answer:a});$("waterBtn").disabled=true;$("landBtn").disabled=true;$("studentStatus").textContent="已送出答案，等待結果……";
+ if(!teacherConn)return;teacherConn.send({type:"answer",index:studentIndex,answer:a});$("waterBtn").disabled=true;$("landBtn").disabled=true;$("studentStatus").textContent="已送出答案，等待結果……";
 }
+function showPodium(scores,names){const arr=Object.keys(scores||{}).map(id=>({name:(names||{})[id]||"同學",score:scores[id]||0})).sort((a,b)=>b.score-a.score).slice(0,3);const order=[1,0,2],med=["🥈","🥇","🥉"],cls=["p2","p1","p3"];$("podiumRow").innerHTML=order.filter(i=>arr[i]).map(i=>'<div class="pod '+cls[i]+'"><div class="medal">'+med[i]+'</div><div class="podname">'+esc(arr[i].name)+'</div><div class="podscore">'+arr[i].score+' 分</div></div>').join("");$("podiumOverlay").classList.remove("hide");let h="";for(let i=0;i<80;i++)h+='<i style="left:'+Math.random()*100+'%;animation-delay:'+Math.random()*1.5+'s"></i>';$("confetti").innerHTML=h}function closePodium(){$("podiumOverlay").classList.add("hide");$("confetti").innerHTML=""}
 function renderFinal(scores,names){
  const arr=Object.keys(scores||{}).map(id=>({name:(names||{})[id]||"同學",score:scores[id]||0})).sort((a,b)=>b.score-a.score);
  $("studentStatus").textContent="🎉 挑戰完成！";$("studentQuestion").innerHTML="🏆 最終排行榜";
@@ -190,5 +195,5 @@ function renderFinal(scores,names){
 }
 function esc(s){return String(s).replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[m]))}
 </script>
-</body>
+<div id="podiumOverlay" class="podium-overlay hide"><div class="podium-box"><h2>🏆 最終頒獎</h2><div id="podiumRow" class="podium-row"></div><button class="btn" onclick="closePodium()">完成</button></div><div id="confetti" class="confetti"></div></div></body>
 </html>

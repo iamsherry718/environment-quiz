@@ -187,10 +187,14 @@ function startStudentTimer(deadline){
 function answer(a){
  if(!teacherConn)return;teacherConn.send({type:"answer",index:studentIndex,answer:a});$("waterBtn").disabled=true;$("landBtn").disabled=true;$("studentStatus").textContent="已送出答案，等待結果……";
 }
-function showPodium(scores,names){const arr=Object.keys(scores||{}).map(id=>({name:(names||{})[id]||"同學",score:scores[id]||0})).sort((a,b)=>b.score-a.score).slice(0,3);const order=[1,0,2],med=["🥈","🥇","🥉"],cls=["p2","p1","p3"];$("podiumRow").innerHTML=order.filter(i=>arr[i]).map(i=>'<div class="pod '+cls[i]+'"><div class="medal">'+med[i]+'</div><div class="podname">'+esc(arr[i].name)+'</div><div class="podscore">'+arr[i].score+' 分</div></div>').join("");$("podiumOverlay").classList.remove("hide");let h="";for(let i=0;i<80;i++)h+='<i style="left:'+Math.random()*100+'%;animation-delay:'+Math.random()*1.5+'s"></i>';$("confetti").innerHTML=h}function closePodium(){$("podiumOverlay").classList.add("hide");$("confetti").innerHTML="";$("studentStatus").textContent="🎉 挑戰完成！請查看下方最終排行榜。";}
-function renderFinal(scores,names){
- const arr=Object.keys(scores||{}).map(id=>({name:(names||{})[id]||"同學",score:scores[id]||0})).sort((a,b)=>b.score-a.score);
- $("studentStatus").textContent="🎉 挑戰完成！";$("studentQuestion").innerHTML="🏆 最終排行榜";
+function showPodium(scores,names){const arr=Object.keys(scores||{}).map(id=>({name:(names||{})[id]||"同學",score:scores[id]||0})).sort((a,b)=>b.score-a.score).slice(0,3);const order=[1,0,2],med=["🥈","🥇","🥉"],cls=["p2","p1","p3"];$("podiumRow").innerHTML=order.filter(i=>arr[i]).map(i=>'<div class="pod '+cls[i]+'"><div class="medal">'+med[i]+'</div><div class="podname">'+esc(arr[i].name)+'</div><div class="podscore">'+arr[i].score+' 分</div></div>').join("");$("podiumOverlay").classList.remove("hide");let h="";for(let i=0;i<80;i++)h+='<i style="left:'+Math.random()*100+'%;animation-delay:'+Math.random()*1.5+'s"></i>';$("confetti").innerHTML=h}function closePodium(){
+  $("podiumOverlay").classList.add("hide");
+  $("confetti").innerHTML="";
+
+  if($("studentStatus")){
+    $("studentStatus").textContent="🎉 挑戰完成！請查看下方最終排行榜。";
+  }
+}
  $("studentScore").innerHTML=arr.map((x,i)=>(i+1)+". "+esc(x.name)+"　<b>"+x.score+" 分</b>").join("<br>");
 }
 function esc(s){return String(s).replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[m]))}

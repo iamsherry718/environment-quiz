@@ -142,7 +142,7 @@ function sendQuestion(){
 function nextQuestion(){if(game.index<questions.length-1){game.index++;sendQuestion()}else{finishGame()}}
 function finishGame(){
  clearInterval(timer);game.active=false;broadcast({type:"finish",scores:game.scores,names:Object.fromEntries([...students].map(([id,s])=>[id,s.name]))});
- $("teacherQuestion").textContent="🎉 全部完成！";$("teacherTimer").textContent="";$("nextBtn").disabled=true;renderTeacher();
+ $("teacherQuestion").textContent="🎉 全部完成！";$("teacherTimer").textContent="";$("nextBtn").disabled=true;renderTeacher();showPodium(game.scores,Object.fromEntries([...students].map(([id,s])=>[id,s.name])));
 }
 function endGame(){clearInterval(timer);game.active=false;broadcast({type:"end"});$("teacherQuestion").textContent="遊戲已結束";$("nextBtn").disabled=true;renderTeacher()}
 function tickTeacher(){const r=Math.max(0,Math.ceil((game.deadline-Date.now())/1000));$("teacherTimer").textContent=game.active?r+" 秒":(game.index>=0?"時間到":"—");$("teacherTimer").classList.toggle("hot",game.active&&r<=3);$("teacherBar").style.width=Math.max(0,Math.min(100,(game.deadline-Date.now())/100))+"%"}
@@ -169,7 +169,7 @@ function joinRoom(){
 function studentReceive(d){
  if(d.type==="joined")$("studentStatus").textContent="已加入全班！目前 "+d.count+" 人";
  if(d.type==="question"){
-   $("studentQuestion").textContent="第 "+(d.index+1)+" / "+d.total+" 題　"+d.q;
+   studentIndex=d.index;$("studentQuestion").textContent="第 "+(d.index+1)+" / "+d.total+" 題　"+d.q;
    $("studentStatus").textContent="請選擇答案！";
    $("waterBtn").disabled=false;$("landBtn").disabled=false;
    $("waterBtn").dataset.sent="";$("landBtn").dataset.sent="";
@@ -187,7 +187,7 @@ function startStudentTimer(deadline){
 function answer(a){
  if(!teacherConn)return;teacherConn.send({type:"answer",index:studentIndex,answer:a});$("waterBtn").disabled=true;$("landBtn").disabled=true;$("studentStatus").textContent="已送出答案，等待結果……";
 }
-function showPodium(scores,names){const arr=Object.keys(scores||{}).map(id=>({name:(names||{})[id]||"同學",score:scores[id]||0})).sort((a,b)=>b.score-a.score).slice(0,3);const order=[1,0,2],med=["🥈","🥇","🥉"],cls=["p2","p1","p3"];$("podiumRow").innerHTML=order.filter(i=>arr[i]).map(i=>'<div class="pod '+cls[i]+'"><div class="medal">'+med[i]+'</div><div class="podname">'+esc(arr[i].name)+'</div><div class="podscore">'+arr[i].score+' 分</div></div>').join("");$("podiumOverlay").classList.remove("hide");let h="";for(let i=0;i<80;i++)h+='<i style="left:'+Math.random()*100+'%;animation-delay:'+Math.random()*1.5+'s"></i>';$("confetti").innerHTML=h}function closePodium(){$("podiumOverlay").classList.add("hide");$("confetti").innerHTML=""}
+function showPodium(scores,names){const arr=Object.keys(scores||{}).map(id=>({name:(names||{})[id]||"同學",score:scores[id]||0})).sort((a,b)=>b.score-a.score).slice(0,3);const order=[1,0,2],med=["🥈","🥇","🥉"],cls=["p2","p1","p3"];$("podiumRow").innerHTML=order.filter(i=>arr[i]).map(i=>'<div class="pod '+cls[i]+'"><div class="medal">'+med[i]+'</div><div class="podname">'+esc(arr[i].name)+'</div><div class="podscore">'+arr[i].score+' 分</div></div>').join("");$("podiumOverlay").classList.remove("hide");let h="";for(let i=0;i<80;i++)h+='<i style="left:'+Math.random()*100+'%;animation-delay:'+Math.random()*1.5+'s"></i>';$("confetti").innerHTML=h}function closePodium(){$("podiumOverlay").classList.add("hide");$("confetti").innerHTML="";$("studentStatus").textContent="🎉 挑戰完成！請查看下方最終排行榜。";}
 function renderFinal(scores,names){
  const arr=Object.keys(scores||{}).map(id=>({name:(names||{})[id]||"同學",score:scores[id]||0})).sort((a,b)=>b.score-a.score);
  $("studentStatus").textContent="🎉 挑戰完成！";$("studentQuestion").innerHTML="🏆 最終排行榜";
@@ -195,5 +195,6 @@ function renderFinal(scores,names){
 }
 function esc(s){return String(s).replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[m]))}
 </script>
-<div id="podiumOverlay" class="podium-overlay hide"><div class="podium-box"><h2>🏆 最終頒獎</h2><div id="podiumRow" class="podium-row"></div><button class="btn" onclick="closePodium()">完成</button></div><div id="confetti" class="confetti"></div></div></body>
+<script>document.getElementById("closePodiumBtn")?.addEventListener("click",closePodium);</script>
+<div id="podiumOverlay" class="podium-overlay hide"><div class="podium-box"><h2>🏆 最終頒獎</h2><div id="podiumRow" class="podium-row"></div><button type="button" class="btn" id="closePodiumBtn">完成</button></div><div id="confetti" class="confetti"></div></div></body>
 </html>

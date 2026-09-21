@@ -195,6 +195,15 @@ function renderFinal(scores,names){
 }
 function esc(s){return String(s).replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[m]))}
 </script>
-<script>document.getElementById("closePodiumBtn")?.addEventListener("click",closePodium);</script>
-<div id="podiumOverlay" class="podium-overlay hide"><div class="podium-box"><h2>🏆 最終頒獎</h2><div id="podiumRow" class="podium-row"></div><button type="button" class="btn" id="closePodiumBtn">完成</button></div><div id="confetti" class="confetti"></div></div></body>
+<div id="podiumOverlay" class="podium-overlay hide">
+  <div class="podium-box">
+    <h2>🏆 最終頒獎</h2>
+    <div id="podiumRow" class="podium-row"></div>
+
+    <button type="button" class="btn" id="closePodiumBtn" onclick="closePodium()">
+      完成
+    </button>
+  </div>
+<div id="confetti" class="confetti"></div>
+</div><button type="button" class="btn" id="closePodiumBtn">完成</button></div><div id="confetti" class="confetti"></div></div></body>
 </html>

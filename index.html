@@ -1,0 +1,194 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>環境小偵探｜全班即時搶答</title>
+<script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+<style>
+*{box-sizing:border-box}body{margin:0;font-family:system-ui,-apple-system,"Noto Sans TC",sans-serif;background:linear-gradient(135deg,#e8f7ff,#f7fff0);color:#17324d}
+.wrap{max-width:900px;margin:auto;padding:22px}.card{background:#fff;border-radius:22px;padding:24px;box-shadow:0 10px 35px #17324d18;margin:14px 0}
+h1{margin:0 0 8px;font-size:clamp(28px,6vw,48px)}h2{margin-top:0}.sub{color:#567}.mode{display:flex;gap:10px;flex-wrap:wrap}.btn{border:0;border-radius:14px;padding:14px 20px;font-size:18px;font-weight:700;cursor:pointer;background:#1769aa;color:white}.btn.alt{background:#e9eef3;color:#17324d}.btn.green{background:#2d8a57}.btn.red{background:#c94b4b}.btn:disabled{opacity:.45;cursor:not-allowed}
+input{width:100%;padding:14px;border:2px solid #d8e2ea;border-radius:12px;font-size:18px;margin:8px 0 14px}.code{font-size:42px;letter-spacing:8px;font-weight:900;text-align:center;padding:12px;background:#eef8ff;border-radius:16px}
+.question{font-size:clamp(25px,5vw,38px);font-weight:800;text-align:center;margin:22px 0}.answers{display:grid;grid-template-columns:1fr 1fr;gap:14px}.answer{min-height:110px;font-size:28px;border:0;border-radius:18px;color:white;font-weight:900;cursor:pointer}.water{background:#2389d7}.land{background:#55a447}.answer:disabled{opacity:.45}.timer{text-align:center;font-size:48px;font-weight:900}.bar{height:12px;background:#e8edf1;border-radius:99px;overflow:hidden}.bar i{display:block;height:100%;background:#f1a72b;width:100%;transition:width .1s linear}
+table{width:100%;border-collapse:collapse}td,th{padding:10px;border-bottom:1px solid #e5ebef;text-align:left}.rank{font-weight:900}.pill{display:inline-block;padding:6px 10px;border-radius:99px;background:#edf4f8;margin:4px}.hide{display:none}.center{text-align:center}.small{font-size:14px;color:#657887}.notice{padding:12px;border-radius:12px;background:#fff7df}.success{background:#e9f8ef}
+@media(max-width:600px){.answers{grid-template-columns:1fr}.wrap{padding:12px}.card{padding:18px}.code{font-size:34px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="card center">
+    <h1>🌏 環境小偵探</h1>
+    <div class="sub">水域 × 陸域｜全班手機即時搶答版</div>
+  </div>
+
+  <section id="home" class="card">
+    <h2>選擇身分</h2>
+    <div class="mode">
+      <button class="btn green" onclick="showTeacher()">👩‍🏫 老師開房</button>
+      <button class="btn" onclick="showStudent()">📱 學生加入</button>
+    </div>
+    <p class="small">老師開房後會得到 6 位數房間碼；學生用手機輸入房間碼即可加入。</p>
+  </section>
+
+  <section id="teacherSetup" class="card hide">
+    <h2>👩‍🏫 老師開房間</h2>
+    <p>輸入老師名稱（可不填），然後建立房間。</p>
+    <input id="teacherName" placeholder="例如：自然老師">
+    <button class="btn green" onclick="createRoom()">建立房間</button>
+    <button class="btn alt" onclick="backHome()">返回</button>
+  </section>
+
+  <section id="teacher" class="card hide">
+    <h2>老師控制台</h2>
+    <p>請把下面房間碼投影給全班：</p>
+    <div id="roomCode" class="code">------</div>
+    <p class="center">已加入：<b id="studentCount">0</b> 人</p>
+    <div id="studentNames" class="center"></div>
+    <hr>
+    <div id="teacherQuestion" class="question">準備開始！</div>
+    <div class="timer" id="teacherTimer">—</div>
+    <div class="bar"><i id="teacherBar"></i></div>
+    <div class="center" style="margin-top:18px">
+      <button class="btn green" id="startBtn" onclick="startGame()">▶️ 開始搶答</button>
+      <button class="btn alt" id="nextBtn" onclick="nextQuestion()" disabled>下一題 ➜</button>
+      <button class="btn red" onclick="endGame()">結束</button>
+    </div>
+    <div id="teacherBoard" style="margin-top:20px"></div>
+  </section>
+
+  <section id="studentSetup" class="card hide">
+    <h2>📱 加入搶答</h2>
+    <label>房間碼</label>
+    <input id="joinCode" inputmode="numeric" maxlength="6" placeholder="輸入 6 位數房間碼">
+    <label>你的暱稱</label>
+    <input id="studentName" maxlength="12" placeholder="例如：小明">
+    <button class="btn" onclick="joinRoom()">加入遊戲</button>
+    <button class="btn alt" onclick="backHome()">返回</button>
+    <p id="joinStatus" class="small"></p>
+  </section>
+
+  <section id="student" class="card hide">
+    <h2>📱 <span id="myName"></span></h2>
+    <div id="studentStatus" class="notice">等待老師開始出題……</div>
+    <div class="question" id="studentQuestion">準備中</div>
+    <div class="timer" id="studentTimer">—</div>
+    <div class="bar"><i id="studentBar"></i></div>
+    <div class="answers">
+      <button class="answer water" id="waterBtn" onclick="answer('水域')" disabled>💧 水域</button>
+      <button class="answer land" id="landBtn" onclick="answer('陸域')" disabled>🌳 陸域</button>
+    </div>
+    <div id="studentScore" class="center" style="margin-top:18px;font-size:20px;font-weight:800"></div>
+  </section>
+</div>
+
+<script>
+const questions=[
+ {q:"高山是屬於哪一種環境？",a:"陸域"},
+ {q:"森林是屬於哪一種環境？",a:"陸域"},
+ {q:"草地是屬於哪一種環境？",a:"陸域"},
+ {q:"潮間帶是屬於哪一種環境？",a:"水域"},
+ {q:"海洋是屬於哪一種環境？",a:"水域"},
+ {q:"溪流是屬於哪一種環境？",a:"水域"},
+ {q:"湖泊是屬於哪一種環境？",a:"水域"},
+ {q:"水田是屬於哪一種環境？",a:"水域"},
+ {q:"生態池是屬於哪一種環境？",a:"水域"}
+];
+let peer=null,roomPeer=null,teacherConn=null,teacherMode=false,students=new Map(),game={index:-1,active:false,deadline:0,answers:{},scores:{}},timer=null,myName="";
+const $=id=>document.getElementById(id);
+function show(id){document.querySelectorAll("section").forEach(x=>x.classList.add("hide"));$(id).classList.remove("hide")}
+function showTeacher(){show("teacherSetup")} function showStudent(){show("studentSetup")} function backHome(){show("home")}
+function roomId(){return "envquiz-"+Math.floor(100000+Math.random()*900000)}
+function createRoom(){
+ teacherMode=true; const id=roomId(); peer=new Peer(id);
+ peer.on("open",()=>{roomPeer=id; $("roomCode").textContent=id.slice(-6);show("teacher");$("startBtn").disabled=false});
+ peer.on("connection",conn=>{conn.on("open",()=>{conn.on("data",d=>teacherReceive(conn,d));});});
+ peer.on("error",e=>alert("開房失敗："+e.type));
+}
+function teacherReceive(conn,d){
+ if(d.type==="join"){
+   students.set(conn.peer,{name:d.name,conn});
+   game.scores[conn.peer]=game.scores[conn.peer]||0;
+   broadcast({type:"joined",count:students.size});
+   renderTeacher();
+ }
+ if(d.type==="answer" && game.active && d.index===game.index && !game.answers[conn.peer]){
+   const remain=Math.max(0,Math.ceil((game.deadline-Date.now())/1000));
+   const correct=d.answer===questions[game.index].a;
+   const points=correct?(10+remain):0;
+   game.answers[conn.peer]={answer:d.answer,correct,points};
+   game.scores[conn.peer]=(game.scores[conn.peer]||0)+points;
+   conn.send({type:"result",correct,points});
+   broadcast({type:"scores",scores:game.scores});
+   renderTeacher();
+ }
+}
+function broadcast(msg){students.forEach(s=>{try{s.conn.send(msg)}catch(e){}})}
+function startGame(){
+ if(students.size===0){alert("請先讓學生用手機加入房間。");return}
+ game.index=0;game.scores={};students.forEach((s,id)=>game.scores[id]=0);sendQuestion();
+}
+function sendQuestion(){
+ clearInterval(timer);game.active=true;game.answers={};game.deadline=Date.now()+10000;
+ const q=questions[game.index];
+ broadcast({type:"question",index:game.index,q:q.q,total:questions.length,deadline:game.deadline});
+ $("startBtn").disabled=true;$("nextBtn").disabled=true;renderTeacher();tickTeacher();
+ timer=setInterval(()=>{tickTeacher();if(Date.now()>=game.deadline){clearInterval(timer);game.active=false;broadcast({type:"timeout"});$("nextBtn").disabled=false;renderTeacher();}},100);
+}
+function nextQuestion(){if(game.index<questions.length-1){game.index++;sendQuestion()}else{finishGame()}}
+function finishGame(){
+ clearInterval(timer);game.active=false;broadcast({type:"finish",scores:game.scores,names:Object.fromEntries([...students].map(([id,s])=>[id,s.name]))});
+ $("teacherQuestion").textContent="🎉 全部完成！";$("teacherTimer").textContent="";$("nextBtn").disabled=true;renderTeacher();
+}
+function endGame(){clearInterval(timer);game.active=false;broadcast({type:"end"});$("teacherQuestion").textContent="遊戲已結束";$("nextBtn").disabled=true;renderTeacher()}
+function tickTeacher(){const r=Math.max(0,Math.ceil((game.deadline-Date.now())/1000));$("teacherTimer").textContent=game.active?r+" 秒":(game.index>=0?"時間到":"—");$("teacherBar").style.width=Math.max(0,Math.min(100,(game.deadline-Date.now())/100))+"%"}
+function renderTeacher(){
+ $("studentCount").textContent=students.size;
+ $("studentNames").innerHTML=[...students.values()].map(s=>'<span class="pill">👤 '+esc(s.name)+'</span>').join("");
+ if(game.index>=0)$("teacherQuestion").textContent="第 "+(game.index+1)+" / "+questions.length+" 題　"+questions[game.index].q;
+ const rows=[...students].sort((a,b)=>(game.scores[b[0]]||0)-(game.scores[a[0]]||0));
+ $("teacherBoard").innerHTML="<h3>即時排行榜</h3><table><tr><th>名次</th><th>暱稱</th><th>分數</th></tr>"+rows.map((x,i)=>'<tr><td class="rank">'+(i+1)+'</td><td>'+esc(x[1].name)+'</td><td><b>'+((game.scores[x[0]]||0))+'</b></td></tr>').join("")+"</table>";
+}
+function joinRoom(){
+ const code=$("joinCode").value.trim();myName=$("studentName").value.trim();
+ if(code.length!==6||!myName){$("joinStatus").textContent="請輸入 6 位房間碼與暱稱。";return}
+ $("joinStatus").textContent="連線中……";
+ peer=new Peer();
+ peer.on("open",()=>{
+   teacherConn=peer.connect("envquiz-"+code);
+   teacherConn.on("open",()=>{teacherConn.send({type:"join",name:myName});$("myName").textContent=myName;show("student");$("studentStatus").textContent="已加入！等待老師開始出題……";});
+   teacherConn.on("data",studentReceive);
+   teacherConn.on("close",()=>{$("studentStatus").textContent="與老師的連線已中斷。"});
+ });
+ peer.on("error",e=>$("joinStatus").textContent="找不到房間，請確認房間碼。");
+}
+function studentReceive(d){
+ if(d.type==="joined")$("studentStatus").textContent="已加入全班！目前 "+d.count+" 人";
+ if(d.type==="question"){
+   $("studentQuestion").textContent="第 "+(d.index+1)+" / "+d.total+" 題　"+d.q;
+   $("studentStatus").textContent="請選擇答案！";
+   $("waterBtn").disabled=false;$("landBtn").disabled=false;
+   $("waterBtn").dataset.sent="";$("landBtn").dataset.sent="";
+   startStudentTimer(d.deadline);
+ }
+ if(d.type==="result"){$("studentStatus").textContent=d.correct?"✅ 答對！":"❌ 答錯！";$("studentScore").textContent=(d.correct?"+":"")+d.points+" 分";$("waterBtn").disabled=true;$("landBtn").disabled=true}
+ if(d.type==="timeout"){$("studentStatus").textContent="⏰ 時間到！";$("waterBtn").disabled=true;$("landBtn").disabled=true}
+ if(d.type==="scores"){}
+ if(d.type==="finish"){renderFinal(d.scores,d.names);$("waterBtn").disabled=true;$("landBtn").disabled=true}
+ if(d.type==="end"){$("studentStatus").textContent="遊戲已結束";$("waterBtn").disabled=true;$("landBtn").disabled=true}
+}
+function startStudentTimer(deadline){
+ clearInterval(timer);timer=setInterval(()=>{const r=Math.max(0,Math.ceil((deadline-Date.now())/1000));$("studentTimer").textContent=r+" 秒";$("studentBar").style.width=Math.max(0,Math.min(100,(deadline-Date.now())/100))+"%";if(r<=0)clearInterval(timer)},100)
+}
+function answer(a){
+ if(!teacherConn)return;teacherConn.send({type:"answer",index:game.index,answer:a});$("waterBtn").disabled=true;$("landBtn").disabled=true;$("studentStatus").textContent="已送出答案，等待結果……";
+}
+function renderFinal(scores,names){
+ const arr=Object.keys(scores||{}).map(id=>({name:(names||{})[id]||"同學",score:scores[id]||0})).sort((a,b)=>b.score-a.score);
+ $("studentStatus").textContent="🎉 挑戰完成！";$("studentQuestion").innerHTML="🏆 最終排行榜";
+ $("studentScore").innerHTML=arr.map((x,i)=>(i+1)+". "+esc(x.name)+"　<b>"+x.score+" 分</b>").join("<br>");
+}
+function esc(s){return String(s).replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[m]))}
+</script>
+</body>
+</html>
